@@ -11,3 +11,8 @@ This script will output:
 ```go
 go run main.go --username <username> --token <github token> --date <the date you want to get work history>
 ```
+
+## Roadmap
+Features that i want to add later:
+- [ ] Get commits instead of PR (sometime we just commit to master without PR 😜)
+- [ ] Web version
