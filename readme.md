@@ -1,10 +1,20 @@
 # Help Me Remind
 
-This is a simple client/server application built with Go and React.
+Ever returned from a vacation, opened your terminal, and thought:
 
-## 📜 License
+“Wait... what did I even do last week?” 😵‍💫
 
-This is a for-fun, open-source project. It is licensed under the [MIT License](LICENSE).
+Fear not, forgetful engineer!
+
+This Web App is your GitHub-powered time machine, designed specifically for those who:
+
+1. Pushed code like a hero 🚀
+2. Closed PRs like a beast 🔥
+...and then completely forgot everything after 3 days of eating too much and sleeping in 🏖️🥱
+
+## 🛠️ What it does
+### 🕵️ Finds all your PRs on a specific date
+### 🔍 Digs up the top 5 commits from each PR
 
 ## 🛠️ Prerequisites
 
@@ -71,3 +81,7 @@ The development server will be running on `http://localhost:5173` (or the next a
 
 ---
 Made with ❤️
+
+## 📜 License
+
+This is a for-fun, open-source project. It is licensed under the [MIT License](LICENSE).
