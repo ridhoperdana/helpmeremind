@@ -77,7 +77,7 @@ In the `client` directory:
 npm run dev
 ```
 
-The development server will be running on `http://localhost:5173` (or the next available port).
+The development server will be running on `http://localhost:7734` (or the next available port).
 
 ---
 Made with ❤️
