@@ -29,6 +29,7 @@ import { ThemeProvider } from "./components/theme-provider"
 function App() {
   const [token, setToken] = useState("")
   const [date, setDate] = useState<Date | undefined>(new Date())
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false)
   const [report, setReport] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -92,9 +93,9 @@ function App() {
                 onChange={(e) => setToken(e.target.value)}
               />
             </div>
-            <div className="space-y-2">
+            <div className="flex flex-col space-y-2">
               <Label>Date</Label>
-              <Popover>
+              <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                 <PopoverTrigger asChild>
                   <Button
                     variant={"outline"}
@@ -111,7 +112,10 @@ function App() {
                   <DayPicker
                     mode="single"
                     selected={date}
-                    onSelect={setDate}
+                    onSelect={(day) => {
+                      setDate(day)
+                      setIsDatePickerOpen(false)
+                    }}
                     initialFocus
                     className="m-0"
                   />
