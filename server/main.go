@@ -86,6 +86,7 @@ func reportHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func generateReport(token, dateStr string) (string, error) {
+	fmt.Println("Generating report for date:", dateStr)
 	date, err := time.Parse("2006-01-02", dateStr)
 	if err != nil {
 		return "", fmt.Errorf("invalid date format, use YYYY-MM-DD: %w", err)
