@@ -34,7 +34,7 @@ func main() {
 
 	handler := enableCORS(mux)
 
-	fmt.Println("Server starting on :7733")
+	fmt.Println("Server starting on :7744")
 	if err := http.ListenAndServe(":7733", handler); err != nil {
 		fmt.Printf("Failed to start server: %v\n", err)
 	}

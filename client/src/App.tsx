@@ -46,7 +46,7 @@ function App() {
 
     try {
       const response = await fetch(
-        `http://localhost:7733/api/report?date=${format(date, "yyyy-MM-dd")}`,
+        `http://localhost:7744/api/report?date=${format(date, "yyyy-MM-dd")}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
