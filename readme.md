@@ -67,7 +67,7 @@ In the `server` directory:
 go run .
 ```
 
-The API server will be running on `http://localhost:8080` (or the configured port).
+The API server will be running on `http://localhost:7733` (or the configured port).
 
 **Run the Web (React Client)**
 
