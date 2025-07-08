@@ -1,7 +1,12 @@
 import { useState } from "react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
+import { format } from "date-fns"
+import { Calendar as CalendarIcon } from "lucide-react"
+import { DayPicker } from "react-day-picker"
+import "react-day-picker/dist/style.css"
 
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -13,24 +18,34 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import { ModeToggle } from "@/components/mode-toggle"
 import { ThemeProvider } from "./components/theme-provider"
 
 function App() {
   const [token, setToken] = useState("")
-  const [date, setDate] = useState(new Date().toISOString().split("T")[0])
+  const [date, setDate] = useState<Date | undefined>(new Date())
   const [report, setReport] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
   const handleGenerateReport = async () => {
+    if (!date) {
+      setError("Please select a date.")
+      return
+    }
+
     setLoading(true)
     setError("")
     setReport("")
 
     try {
       const response = await fetch(
-        `http://localhost:8080/api/report?date=${date}`,
+        `http://localhost:8080/api/report?date=${format(date, "yyyy-MM-dd")}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -78,13 +93,30 @@ function App() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="date">Date</Label>
-              <Input
-                id="date"
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-              />
+              <Label>Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-[280px] justify-start text-left font-normal",
+                      !date && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {date ? format(date, "PPP") : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-2">
+                  <DayPicker
+                    mode="single"
+                    selected={date}
+                    onSelect={setDate}
+                    initialFocus
+                    className="m-0"
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
           </CardContent>
           <CardFooter>
@@ -108,7 +140,7 @@ function App() {
         {report && (
           <Card className="max-w-2xl mx-auto mt-4">
             <CardHeader>
-              <CardTitle>Report for {date}</CardTitle>
+              <CardTitle>Report for {date ? format(date, "PPP") : ""}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="prose dark:prose-invert">
