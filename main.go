@@ -1,11 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 )
@@ -25,35 +24,93 @@ type Commit struct {
 	} `json:"commit"`
 }
 
-func main() {
-	username := flag.String("username", "", "GitHub username")
-	token := flag.String("token", "", "GitHub personal access token")
-	dateStr := flag.String("date", "", "Date in YYYY-MM-DD format")
-	flag.Parse()
+type User struct {
+	Login string `json:"login"`
+}
 
-	if *username == "" || *token == "" || *dateStr == "" {
-		fmt.Println("Usage: go run main.go --username <username> --token <token> --date <YYYY-MM-DD>")
-		os.Exit(1)
+func main() {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/report", reportHandler)
+
+	handler := enableCORS(mux)
+
+	fmt.Println("Server starting on :8080")
+	if err := http.ListenAndServe(":8080", handler); err != nil {
+		fmt.Printf("Failed to start server: %v\n", err)
+	}
+}
+
+func enableCORS(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// In a production environment, you should restrict the allowed origins.
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+func reportHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
 	}
 
-	date, err := time.Parse("2006-01-02", *dateStr)
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+		http.Error(w, "Authorization header is missing or invalid", http.StatusUnauthorized)
+		return
+	}
+	token := strings.TrimPrefix(authHeader, "Bearer ")
+
+	dateStr := r.URL.Query().Get("date")
+	if dateStr == "" {
+		http.Error(w, "Date parameter is required", http.StatusBadRequest)
+		return
+	}
+
+	report, err := generateReport(token, dateStr)
 	if err != nil {
-		fmt.Println("Invalid date format. Use YYYY-MM-DD")
-		os.Exit(1)
+		http.Error(w, fmt.Sprintf("Failed to generate report: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+	w.Write([]byte(report))
+}
+
+func generateReport(token, dateStr string) (string, error) {
+	date, err := time.Parse("2006-01-02", dateStr)
+	if err != nil {
+		return "", fmt.Errorf("invalid date format, use YYYY-MM-DD: %w", err)
 	}
 	dateOnly := date.Format("2006-01-02")
 
 	client := &http.Client{}
-	query := fmt.Sprintf("is:pr author:%s created:%s..%s", *username, dateOnly, dateOnly)
+
+	user, err := getAuthenticatedUser(client, token)
+	if err != nil {
+		return "", fmt.Errorf("failed to get authenticated user: %w", err)
+	}
+
+	query := fmt.Sprintf("is:pr author:%s created:%s..%s", user.Login, dateOnly, dateOnly)
 	searchURL := fmt.Sprintf("https://api.github.com/search/issues?q=%s", strings.ReplaceAll(query, " ", "+"))
 
 	req, _ := http.NewRequest("GET", searchURL, nil)
-	req.SetBasicAuth(*username, *token)
+	req.Header.Set("Authorization", "Bearer "+token)
 
 	resp, err := client.Do(req)
-	if err != nil || resp.StatusCode != 200 {
-		fmt.Printf("Failed to fetch PRs: %v\n", err)
-		os.Exit(1)
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch PRs: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed to fetch PRs: status code %d", resp.StatusCode)
 	}
 	defer resp.Body.Close()
 
@@ -67,54 +124,74 @@ func main() {
 			} `json:"pull_request"`
 		} `json:"items"`
 	}
-
-	json.NewDecoder(resp.Body).Decode(&searchResults)
-
-	// Prepare markdown file
-	fileName := fmt.Sprintf("pr-report-%s.md", dateOnly)
-	file, err := os.Create(fileName)
-	if err != nil {
-		fmt.Printf("Failed to create output file: %v\n", err)
-		os.Exit(1)
+	if err := json.NewDecoder(resp.Body).Decode(&searchResults); err != nil {
+		return "", fmt.Errorf("failed to decode search results: %w", err)
 	}
-	defer file.Close()
 
+	var report bytes.Buffer
 	for _, item := range searchResults.Items {
-		fmt.Fprintf(file, "## [%s](%s)\n", item.Title, item.HTMLURL)
+		fmt.Fprintf(&report, "## [%s](%s)\n", item.Title, item.HTMLURL)
 
-		prAPIURL := item.PullRequest.URL
-		prReq, _ := http.NewRequest("GET", prAPIURL, nil)
-		prReq.SetBasicAuth(*username, *token)
-		prResp, err := client.Do(prReq)
-		if err != nil || prResp.StatusCode != 200 {
-			fmt.Fprintf(file, "Failed to fetch PR data for #%d\n\n", item.Number)
+		commits, err := getCommitsForPR(client, item.PullRequest.URL, token)
+		if err != nil {
+			fmt.Fprintf(&report, "Failed to fetch commits for PR #%d: %v\n\n", item.Number, err)
 			continue
 		}
-		var pr PullRequest
-		json.NewDecoder(prResp.Body).Decode(&pr)
-		prResp.Body.Close()
-
-		commitsURL := prAPIURL + "/commits"
-		commitReq, _ := http.NewRequest("GET", commitsURL, nil)
-		commitReq.SetBasicAuth(*username, *token)
-		commitResp, err := client.Do(commitReq)
-		if err != nil || commitResp.StatusCode != 200 {
-			fmt.Fprintf(file, "Failed to fetch commits for PR #%d\n\n", pr.Number)
-			continue
-		}
-		var commits []Commit
-		json.NewDecoder(commitResp.Body).Decode(&commits)
-		commitResp.Body.Close()
 
 		for i, c := range commits {
 			if i >= 5 {
 				break
 			}
 			msg := strings.Split(c.Commit.Message, "\n")[0]
-			fmt.Fprintf(file, "- `%s`: %s\n", c.SHA[:7], msg)
+			fmt.Fprintf(&report, "- `%s`: %s\n", c.SHA[:7], msg)
 		}
-		fmt.Fprintln(file)
+		fmt.Fprintln(&report)
 	}
 
-	fmt.Printf("Markdown report written to %s\n", fileName)
+	return report.String(), nil
+}
+
+func getAuthenticatedUser(client *http.Client, token string) (*User, error) {
+	req, _ := http.NewRequest("GET", "https://api.github.com/user", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to get user: status code %d", resp.StatusCode)
+	}
+
+	var user User
+	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+func getCommitsForPR(client *http.Client, prAPIURL, token string) ([]Commit, error) {
+	commitsURL := prAPIURL + "/commits"
+	req, _ := http.NewRequest("GET", commitsURL, nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("request failed with status: %d", resp.StatusCode)
+	}
+
+	var commits []Commit
+	if err := json.NewDecoder(resp.Body).Decode(&commits); err != nil {
+		return nil, err
+	}
+
+	return commits, nil
 }
