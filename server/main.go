@@ -52,10 +52,7 @@ func main() {
 
 	handler := enableCORS(mux)
 
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		port = "7733"
-	}
+	port := "8080"
 
 	fmt.Println("Server starting on :" + port)
 	if err := http.ListenAndServe(fmt.Sprintf(":%s", port), handler); err != nil {
