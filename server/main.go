@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 )
@@ -34,8 +35,13 @@ func main() {
 
 	handler := enableCORS(mux)
 
-	fmt.Println("Server starting on :7733")
-	if err := http.ListenAndServe(":7733", handler); err != nil {
+	port := os.Getenv("API_PORT")
+	if port == "" {
+		port = "7733"
+	}
+
+	fmt.Println("Server starting on :" + port)
+	if err := http.ListenAndServe(fmt.Sprintf(":%s", port), handler); err != nil {
 		fmt.Printf("Failed to start server: %v\n", err)
 	}
 }

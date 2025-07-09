@@ -46,7 +46,10 @@ function App() {
 
     try {
       const response = await fetch(
-        `http://localhost:7733/api/report?date=${format(date, "yyyy-MM-dd")}`,
+        `${import.meta.env.VITE_API_URL}/api/report?date=${format(
+          date,
+          "yyyy-MM-dd"
+        )}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
