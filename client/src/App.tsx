@@ -1,13 +1,7 @@
-import { useState } from "react"
-import ReactMarkdown from "react-markdown"
-import remarkGfm from "remark-gfm"
-import { format } from "date-fns"
-import { Calendar as CalendarIcon } from "lucide-react"
-import { DayPicker } from "react-day-picker"
-import "react-day-picker/dist/style.css"
-
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+import { useState, useEffect } from "react"
+import { ThemeProvider } from "./components/theme-provider"
+import { ModeToggle } from "./components/mode-toggle"
+import { Button } from "./components/ui/button"
 import {
   Card,
   CardContent,
@@ -15,26 +9,56 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+} from "./components/ui/card"
+import { Label } from "./components/ui/label"
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover"
-import { ModeToggle } from "@/components/mode-toggle"
-import { ThemeProvider } from "./components/theme-provider"
+} from "./components/ui/popover"
+import { cn } from "./lib/utils"
+import { format } from "date-fns"
+import { Calendar as CalendarIcon } from "lucide-react"
+import { DayPicker } from "react-day-picker"
+import "react-day-picker/dist/style.css"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 
-function App() {
-  const [token, setToken] = useState("")
+interface User {
+  name: string
+  avatar_url: string
+  login: string
+}
+
+const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8080";
+
+function LoginPage() {
+  return (
+    <div className="flex items-center justify-center h-screen">
+      <Card className="w-[350px]">
+        <CardHeader>
+          <CardTitle>Login</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <a href={`${apiUrl}/auth/github/login`}>
+            <Button className="w-full">Login with GitHub</Button>
+          </a>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+function ReminderApp({ user }: { user: User }) {
   const [date, setDate] = useState<Date | undefined>(new Date())
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false)
   const [report, setReport] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
-  const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:7733";
+  const handleLogout = async () => {
+    window.location.href = `${apiUrl}/auth/logout` // This will trigger a page reload and auth check.
+  }
 
   const handleGenerateReport = async () => {
     if (!date) {
@@ -48,14 +72,9 @@ function App() {
 
     try {
       const response = await fetch(
-        `${apiUrl}/api/report?date=${format(
-          date,
-          "yyyy-MM-dd"
-        )}`,
+        `${apiUrl}/api/report?date=${format(date, "yyyy-MM-dd")}`,
         {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          credentials: "include", // Send cookies with the request
         }
       )
 
@@ -74,33 +93,38 @@ function App() {
   }
 
   return (
-    <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
-      <div className="container mx-auto p-4">
-        <div className="absolute top-4 right-4">
-          <ModeToggle />
-        </div>
-        <Card className="max-w-2xl mx-auto">
+    <div className="container mx-auto p-4">
+      <div className="absolute top-4 right-4 flex items-center gap-4">
+        <p>
+          Welcome, <strong>{user.name || user.login}</strong>!
+        </p>
+        <img
+          src={user.avatar_url}
+          alt="user avatar"
+          className="w-8 h-8 rounded-full"
+        />
+        <Button onClick={handleLogout} variant="outline">
+          Logout
+        </Button>
+        <ModeToggle />
+      </div>
+
+      <div className="max-w-2xl mx-auto mt-16">
+        <Card>
           <CardHeader>
             <CardTitle>GitHub PR Report</CardTitle>
             <CardDescription>
-              Enter your GitHub token and a date to generate a report of your
-              pull requests.
+              Select a date to generate a report of your pull requests for that
+              day.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="token">GitHub Token</Label>
-              <Input
-                id="token"
-                type="password"
-                placeholder="ghp_..."
-                value={token}
-                onChange={(e) => setToken(e.target.value)}
-              />
-            </div>
             <div className="flex flex-col space-y-2">
               <Label>Date</Label>
-              <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+              <Popover
+                open={isDatePickerOpen}
+                onOpenChange={setIsDatePickerOpen}
+              >
                 <PopoverTrigger asChild>
                   <Button
                     variant={"outline"}
@@ -149,10 +173,12 @@ function App() {
         {report && (
           <Card className="max-w-2xl mx-auto mt-4">
             <CardHeader>
-              <CardTitle>Report for {date ? format(date, "PPP") : ""}</CardTitle>
+              <CardTitle>
+                Report for {date ? format(date, "PPP") : ""}
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="prose dark:prose-invert">
+              <div className="prose dark:prose-invert max-w-none">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                   {report}
                 </ReactMarkdown>
@@ -161,6 +187,50 @@ function App() {
           </Card>
         )}
       </div>
+    </div>
+  )
+}
+
+
+function App() {
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      console.log("fetching user: ", apiUrl)
+      try {
+        const response = await fetch(`${apiUrl}/api/me`, {
+          credentials: 'include', // This tells the browser to send cookies
+        });
+        if (response.ok) {
+          const userData = await response.json()
+          setUser(userData)
+        } else {
+          setUser(null)
+        }
+      } catch (error) {
+        console.error("Failed to fetch user:", error)
+        setUser(null)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchUser()
+  }, [])
+
+  return (
+    <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+      {loading ? (
+        <div className="flex items-center justify-center h-screen">
+          <p>Loading...</p>
+        </div>
+      ) : user ? (
+        <ReminderApp user={user} />
+      ) : (
+        <LoginPage />
+      )}
     </ThemeProvider>
   )
 }
