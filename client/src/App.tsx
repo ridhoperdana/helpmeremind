@@ -2,11 +2,32 @@ import { useState, useEffect } from "react"
 import { ThemeProvider } from "./components/theme-provider"
 import { ModeToggle } from "./components/mode-toggle"
 import { Button } from "./components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "./components/ui/card"
+import { Label } from "./components/ui/label"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "./components/ui/popover"
+import { cn } from "./lib/utils"
+import { format } from "date-fns"
+import { Calendar as CalendarIcon } from "lucide-react"
+import { DayPicker } from "react-day-picker"
+import "react-day-picker/dist/style.css"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 
 interface User {
   name: string
   avatar_url: string
+  login: string
 }
 
 const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8080";
@@ -29,28 +50,145 @@ function LoginPage() {
 }
 
 function ReminderApp({ user }: { user: User }) {
+  const [date, setDate] = useState<Date | undefined>(new Date())
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false)
+  const [report, setReport] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+
   const handleLogout = async () => {
-    // The backend doesn't have a formal logout endpoint that revokes the session token.
-    // We can "log out" on the client by simply clearing the cookie.
-    // A better approach would be to have the backend invalidate the session.
-    // For now, we'll redirect to a non-existent backend endpoint that will clear the cookie
-    // by nature of being on the same domain. A bit of a hack.
-    // A better way would be to call a /logout endpoint.
-    window.location.href = `${apiUrl}/auth/logout`; // This will trigger a page reload and auth check.
-  };
+    window.location.href = `${apiUrl}/auth/logout` // This will trigger a page reload and auth check.
+  }
+
+  const handleGenerateReport = async () => {
+    if (!date) {
+      setError("Please select a date.")
+      return
+    }
+
+    setLoading(true)
+    setError("")
+    setReport("")
+
+    try {
+      const response = await fetch(
+        `${apiUrl}/api/report?date=${format(date, "yyyy-MM-dd")}`,
+        {
+          credentials: "include", // Send cookies with the request
+        }
+      )
+
+      if (!response.ok) {
+        const errText = await response.text()
+        throw new Error(errText || "Failed to generate report")
+      }
+
+      const reportText = await response.text()
+      setReport(reportText)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <div className="container mx-auto p-4">
       <div className="absolute top-4 right-4 flex items-center gap-4">
-        <p>Welcome, {user.name}!</p>
-        <img src={user.avatar_url} alt="user avatar" className="w-8 h-8 rounded-full" />
-        <Button onClick={handleLogout} variant="outline">Logout</Button>
+        <p>
+          Welcome, <strong>{user.name || user.login}</strong>!
+        </p>
+        <img
+          src={user.avatar_url}
+          alt="user avatar"
+          className="w-8 h-8 rounded-full"
+        />
+        <Button onClick={handleLogout} variant="outline">
+          Logout
+        </Button>
         <ModeToggle />
       </div>
-      <h1 className="text-2xl font-bold">Your Reminders</h1>
-      {/* Reminder functionality will go here */}
+
+      <div className="max-w-2xl mx-auto mt-16">
+        <Card>
+          <CardHeader>
+            <CardTitle>GitHub PR Report</CardTitle>
+            <CardDescription>
+              Select a date to generate a report of your pull requests for that
+              day.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-col space-y-2">
+              <Label>Date</Label>
+              <Popover
+                open={isDatePickerOpen}
+                onOpenChange={setIsDatePickerOpen}
+              >
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-[280px] justify-start text-left font-normal",
+                      !date && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {date ? format(date, "PPP") : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-2">
+                  <DayPicker
+                    mode="single"
+                    selected={date}
+                    onSelect={(day) => {
+                      setDate(day)
+                      setIsDatePickerOpen(false)
+                    }}
+                    initialFocus
+                    className="m-0"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </CardContent>
+          <CardFooter>
+            <Button onClick={handleGenerateReport} disabled={loading}>
+              {loading ? "Generating..." : "Generate Report"}
+            </Button>
+          </CardFooter>
+        </Card>
+
+        {error && (
+          <Card className="max-w-2xl mx-auto mt-4">
+            <CardHeader>
+              <CardTitle className="text-destructive">Error</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p>{error}</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {report && (
+          <Card className="max-w-2xl mx-auto mt-4">
+            <CardHeader>
+              <CardTitle>
+                Report for {date ? format(date, "PPP") : ""}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="prose dark:prose-invert max-w-none">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {report}
+                </ReactMarkdown>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
-  );
+  )
 }
 
 
