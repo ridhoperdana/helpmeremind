@@ -30,15 +30,15 @@ func init() {
 		log.Println("No .env file found, reading from environment variables")
 	}
 
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		port = "7733"
+	callBackHost := os.Getenv("FRONTEND_URL")
+	if callBackHost == "" {
+		callBackHost = "http://localhost:8080"
 	}
 
 	githubOauthConfig = &oauth2.Config{
 		ClientID:     os.Getenv("GITHUB_CLIENT_ID"),
 		ClientSecret: os.Getenv("GITHUB_CLIENT_SECRET"),
-		RedirectURL:  fmt.Sprintf("http://localhost:%s/auth/github/callback", port),
+		RedirectURL:  fmt.Sprintf("%s/auth/github/callback", callBackHost),
 		Scopes:       []string{"read:user", "user:email"},
 		Endpoint:     github.Endpoint,
 	}
