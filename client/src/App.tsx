@@ -34,6 +34,8 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
+  const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:7733";
+
   const handleGenerateReport = async () => {
     if (!date) {
       setError("Please select a date.")
@@ -46,7 +48,7 @@ function App() {
 
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/report?date=${format(
+        `${apiUrl}/api/report?date=${format(
           date,
           "yyyy-MM-dd"
         )}`,
