@@ -2,12 +2,15 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"strings"
 	"time"
+
+	"golang.org/x/oauth2"
 )
 
 type PullRequest struct {
@@ -32,6 +35,9 @@ type User struct {
 func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/report", reportHandler)
+	mux.HandleFunc("/api/me", handleMe)
+	mux.HandleFunc("/auth/github/login", handleGitHubLogin)
+	mux.HandleFunc("/auth/github/callback", handleGitHubCallback)
 
 	handler := enableCORS(mux)
 
@@ -46,12 +52,101 @@ func main() {
 	}
 }
 
+func handleGitHubLogin(w http.ResponseWriter, r *http.Request) {
+	oauthStateString, err := generateSessionID()
+	if err != nil {
+		http.Error(w, "Failed to generate state", http.StatusInternalServerError)
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "oauthstate",
+		Value:    oauthStateString,
+		Path:     "/",
+		Expires:  time.Now().Add(10 * time.Minute),
+		HttpOnly: true,
+	})
+
+	url := githubOauthConfig.AuthCodeURL(oauthStateString, oauth2.AccessTypeOffline)
+	http.Redirect(w, r, url, http.StatusTemporaryRedirect)
+}
+
+func handleGitHubCallback(w http.ResponseWriter, r *http.Request) {
+	oauthState, _ := r.Cookie("oauthstate")
+
+	if r.FormValue("state") != oauthState.Value {
+		fmt.Println("invalid oauth GitHub state")
+		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+		return
+	}
+
+	code := r.FormValue("code")
+	token, err := githubOauthConfig.Exchange(context.Background(), code)
+	if err != nil {
+		fmt.Printf("oauthConf.Exchange() failed with '%s'\n", err)
+		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+		return
+	}
+
+	oauthClient := githubOauthConfig.Client(context.Background(), token)
+	client := oauthClient
+	user, err := getAuthenticatedUser(client, "") // token is now in the client
+	if err != nil {
+		fmt.Printf("getAuthenticatedUser failed with '%s'\n", err)
+		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+		return
+	}
+
+	sessionID, err := generateSessionID()
+	if err != nil {
+		http.Error(w, "Failed to generate session ID", http.StatusInternalServerError)
+		return
+	}
+
+	sessions[sessionID] = user.Login
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session_id",
+		Value:    sessionID,
+		Path:     "/",
+		Expires:  time.Now().Add(24 * time.Hour),
+		HttpOnly: true,
+	})
+
+	frontendURL := "http://localhost:5173"
+	if frontendURLFromEnv := os.Getenv("FRONTEND_URL"); frontendURLFromEnv != "" {
+		frontendURL = frontendURLFromEnv
+	}
+
+	// Redirect to the frontend
+	http.Redirect(w, r, frontendURL, http.StatusTemporaryRedirect)
+}
+
+func handleMe(w http.ResponseWriter, r *http.Request) {
+	cookie, err := r.Cookie("session_id")
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	sessionID := cookie.Value
+	login, ok := sessions[sessionID]
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"login": login})
+}
+
 func enableCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// In a production environment, you should restrict the allowed origins.
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:5173")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
 
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)
@@ -100,6 +195,12 @@ func generateReport(token, dateStr string) (string, error) {
 	dateOnly := date.Format("2006-01-02")
 
 	client := &http.Client{}
+	if token != "" {
+		// existing logic for manually provided token
+		client = oauth2.NewClient(context.Background(), oauth2.StaticTokenSource(
+			&oauth2.Token{AccessToken: token},
+		))
+	}
 
 	user, err := getAuthenticatedUser(client, token)
 	if err != nil {
@@ -160,7 +261,11 @@ func generateReport(token, dateStr string) (string, error) {
 
 func getAuthenticatedUser(client *http.Client, token string) (*User, error) {
 	req, _ := http.NewRequest("GET", "https://api.github.com/user", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
+	// The token is now part of the http.Client, so we don't need to set the header manually
+	// if we are coming from an oauth flow.
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
 
 	resp, err := client.Do(req)
 	if err != nil {
