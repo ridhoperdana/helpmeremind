@@ -14,7 +14,6 @@ import (
 
 var (
 	githubOauthConfig *oauth2.Config
-	sessions          = map[string]string{} // In-memory session store: sessionID -> GitHub Login
 )
 
 func generateSessionID() (string, error) {
