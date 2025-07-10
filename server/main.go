@@ -75,7 +75,15 @@ func handleGitHubLogin(w http.ResponseWriter, r *http.Request) {
 		HttpOnly: true,
 	})
 
-	url := githubOauthConfig.AuthCodeURL(oauthStateString, oauth2.AccessTypeOffline)
+	// Create a copy of the config to avoid modifying the global one
+	config := *githubOauthConfig
+	config.Scopes = []string{"read:user", "user:email"}
+
+	if r.URL.Query().Get("private_repo") == "true" {
+		config.Scopes = append(config.Scopes, "repo")
+	}
+
+	url := config.AuthCodeURL(oauthStateString, oauth2.AccessTypeOffline)
 	http.Redirect(w, r, url, http.StatusTemporaryRedirect)
 }
 
