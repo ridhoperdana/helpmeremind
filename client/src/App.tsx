@@ -65,7 +65,7 @@ function LoginPage() {
             </label>
           </div>
           <p className="text-xs text-gray-400">
-            We will only have read-access to your repositories. Your authentication token is never stored on our servers.
+            Github needs read and write access to your repositories, but we will use it only to read your PRs from private repositories. Your authentication token is never stored on our servers.
           </p>
         </div>
       </div>
