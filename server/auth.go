@@ -39,7 +39,7 @@ func init() {
 		ClientID:     os.Getenv("GITHUB_CLIENT_ID"),
 		ClientSecret: os.Getenv("GITHUB_CLIENT_SECRET"),
 		RedirectURL:  fmt.Sprintf("%s/auth/github/callback", callBackHost),
-		Scopes:       []string{"read:user", "user:email", "read:repo"},
+		Scopes:       []string{"read:user", "user:email", "repo"},
 		Endpoint:     github.Endpoint,
 	}
 }
