@@ -1,0 +1,27 @@
+# .air.toml
+# Config file for air: https://github.com/cosmtrek/air
+
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  # The command to build your app
+  cmd = "go build -o ./tmp/main ."
+  # The binary to run
+  bin = "./tmp/main"
+  # Use go run for the dev server
+  full_bin = "go run ."
+  # Watch these file extensions
+  include_ext = ["go", "tpl", "tmpl", "html"]
+  # Ignore these directories
+  exclude_dir = ["assets", "tmp", "vendor"]
+  # Poll for changes every second
+  delay = 1000 # ms
+
+[log]
+  # Show log time
+  time = true
+
+[misc]
+  # Delete tmp folder on exit
+  clean_on_exit = true 
