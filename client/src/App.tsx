@@ -42,38 +42,132 @@ const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
 function LoginPage() {
   const handleLogin = () => {
-    const includePrivateRepos = (document.getElementById('private_repo_scope') as HTMLInputElement)?.checked;
-    let loginUrl = '/auth/github/login';
+    const includePrivateRepos = (
+      document.getElementById("private_repo_scope") as HTMLInputElement
+    )?.checked
+    let loginUrl = `${apiUrl}/auth/github/login`
     if (includePrivateRepos) {
-      loginUrl += '?private_repo=true';
+      loginUrl += "?private_repo=true"
     }
-    window.location.href = loginUrl;
-  };
+    window.location.href = loginUrl
+  }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen">
-      <h1 className="text-4xl font-bold mb-8">HelpMeRemind</h1>
-      <div className="max-w-md text-center mb-8">
-        <p className="text-lg mb-4">
-          Generate daily reports of your GitHub activity with a single click.
-        </p>
-        <div className="p-4 rounded-lg text-center text-sm">
-          <div className="flex items-center justify-center mb-2">
-            <input type="checkbox" id="private_repo_scope" className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" />
-            <label htmlFor="private_repo_scope" className="ml-2 block text-gray-200">
-              Include private repositories in your report
-            </label>
+    <div className="flex flex-col min-h-screen bg-background">
+      <header className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+        <h1 className="text-2xl font-bold">HelpMeRemind</h1>
+        <Button onClick={handleLogin} variant="outline">
+          <Github className="mr-2 h-4 w-4" /> Login
+        </Button>
+      </header>
+
+      <main className="flex-grow">
+        <section className="text-center py-32 md:py-48 lg:py-60 min-h-[60vh]">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight mb-4">
+              Never Forget What You've Accomplished
+            </h2>
+            <p className="max-w-3xl mx-auto text-lg md:text-xl text-muted-foreground mb-8">
+              HelpMeRemind automatically generates daily reports of your GitHub
+              pull requests, so you can easily track your progress and prepare
+              for your stand-ups.
+            </p>
+            <Button onClick={handleLogin} size="lg">
+              <Github className="mr-2 h-4 w-4" /> Get Your First Report
+            </Button>
           </div>
-          <p className="text-xs text-gray-400">
-            Github needs read and write access to your repositories, but we will use it only to read your PRs from private repositories. Your authentication token is never stored on our servers.
+        </section>
+
+        <section id="features" className="py-16 md:py-24 bg-muted">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-12">
+              <h3 className="text-3xl md:text-4xl font-bold">How It Works</h3>
+              <p className="text-lg text-muted-foreground mt-2">
+                Three simple steps to your daily PR summary.
+              </p>
+            </div>
+            <div className="grid md:grid-cols-3 gap-8 text-center">
+              <div className="p-6">
+                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-primary text-primary-foreground mx-auto mb-4">
+                  <span className="text-2xl font-bold">1</span>
+                </div>
+                <h4 className="text-xl font-semibold mb-2">
+                  Login with GitHub
+                </h4>
+                <p className="text-muted-foreground">
+                  Securely connect your GitHub account with a single click.
+                </p>
+              </div>
+              <div className="p-6">
+                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-primary text-primary-foreground mx-auto mb-4">
+                  <span className="text-2xl font-bold">2</span>
+                </div>
+                <h4 className="text-xl font-semibold mb-2">Pick a Date</h4>
+                <p className="text-muted-foreground">
+                  Select the day you want to generate a report for.
+                </p>
+              </div>
+              <div className="p-6">
+                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-primary text-primary-foreground mx-auto mb-4">
+                  <span className="text-2xl font-bold">3</span>
+                </div>
+                <h4 className="text-xl font-semibold mb-2">Get Report</h4>
+                <p className="text-muted-foreground">
+                  Instantly receive a Markdown-formatted list of your PRs.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="login" className="py-16 md:py-24">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h3 className="text-3xl md:text-4xl font-bold mb-4">
+              Ready to Boost Your Productivity?
+            </h3>
+            <p className="text-lg text-muted-foreground mb-8">
+              Stop wasting time compiling your daily updates. Let us do it for
+              you.
+            </p>
+            <div className="max-w-md mx-auto">
+              <Card className="p-6">
+                <div className="flex items-center justify-center mb-4">
+                  <input
+                    type="checkbox"
+                    id="private_repo_scope"
+                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <label
+                    htmlFor="private_repo_scope"
+                    className="ml-2 block text-sm text-muted-foreground"
+                  >
+                    Include private repositories in your report
+                  </label>
+                </div>
+                <p className="text-xs text-muted-foreground mb-6">
+                  We request read-only access to your public and (optionally)
+                  private repositories to generate the report. Your credentials
+                  are never stored on our servers.
+                </p>
+                <Button onClick={handleLogin} size="lg" className="w-full">
+                  <Github className="mr-2 h-4 w-4" /> Login with GitHub & Try
+                  Now
+                </Button>
+              </Card>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer className="border-t">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 text-center text-muted-foreground">
+          <p>
+            &copy; {new Date().getFullYear()} HelpMeRemind. All rights reserved.
           </p>
         </div>
-      </div>
-      <Button onClick={handleLogin}>
-        <Github className="mr-2 h-4 w-4" /> Login with GitHub
-      </Button>
+      </footer>
     </div>
-  );
+  )
 }
 
 function ReminderApp({ user }: { user: User }) {
