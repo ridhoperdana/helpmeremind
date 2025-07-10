@@ -24,6 +24,13 @@ import "react-day-picker/dist/style.css"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { Github } from "lucide-react"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "./components/ui/sheet"
 
 interface User {
   name: string
@@ -114,7 +121,8 @@ function ReminderApp({ user }: { user: User }) {
 
   return (
     <div className="container mx-auto p-4">
-      <div className="absolute top-4 right-4 flex items-center gap-4">
+      {/* Desktop Header */}
+      <div className="hidden md:flex absolute top-4 right-4 items-center gap-4">
         <p>
           Welcome, <strong>{user.name || user.login}</strong>!
         </p>
@@ -129,7 +137,31 @@ function ReminderApp({ user }: { user: User }) {
         <ModeToggle />
       </div>
 
-      <div className="max-w-2xl mx-auto mt-16">
+      {/* Mobile Header */}
+      <div className="md:hidden flex items-center justify-between">
+        <Sheet>
+          <SheetTrigger asChild>
+            <img
+              src={user.avatar_url}
+              alt="user avatar"
+              className="w-8 h-8 rounded-full cursor-pointer"
+            />
+          </SheetTrigger>
+          <SheetContent side="left" className="w-[240px]">
+            <SheetHeader className="text-left">
+              <SheetTitle>Hi, {user.name || user.login}!</SheetTitle>
+            </SheetHeader>
+            <div className="absolute bottom-4 left-4 right-4">
+              <Button onClick={handleLogout} variant="outline" className="w-full">
+                Logout
+              </Button>
+            </div>
+          </SheetContent>
+        </Sheet>
+        <ModeToggle />
+      </div>
+
+      <div className="max-w-2xl mx-auto mt-8 md:mt-16">
         <Card>
           <CardHeader>
             <CardTitle>GitHub PR Report</CardTitle>
