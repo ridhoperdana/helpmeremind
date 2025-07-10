@@ -23,6 +23,7 @@ import { DayPicker } from "react-day-picker"
 import "react-day-picker/dist/style.css"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
+import { Github } from "lucide-react"
 
 interface User {
   name: string
@@ -33,20 +34,39 @@ interface User {
 const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
 function LoginPage() {
+  const handleLogin = () => {
+    const includePrivateRepos = (document.getElementById('private_repo_scope') as HTMLInputElement)?.checked;
+    let loginUrl = '/auth/github/login';
+    if (includePrivateRepos) {
+      loginUrl += '?private_repo=true';
+    }
+    window.location.href = loginUrl;
+  };
+
   return (
-    <div className="flex items-center justify-center h-screen">
-      <Card className="w-[350px]">
-        <CardHeader>
-          <CardTitle>Login</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <a href={`${apiUrl}/auth/github/login`}>
-            <Button className="w-full">Login with GitHub</Button>
-          </a>
-        </CardContent>
-      </Card>
+    <div className="flex flex-col items-center justify-center min-h-screen">
+      <h1 className="text-4xl font-bold mb-8">HelpMeRemind</h1>
+      <div className="max-w-md text-center mb-8">
+        <p className="text-lg mb-4">
+          Generate daily reports of your GitHub activity with a single click.
+        </p>
+        <div className="p-4 rounded-lg text-center text-sm">
+          <div className="flex items-center justify-center mb-2">
+            <input type="checkbox" id="private_repo_scope" className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" />
+            <label htmlFor="private_repo_scope" className="ml-2 block text-gray-200">
+              Include private repositories in your report
+            </label>
+          </div>
+          <p className="text-xs text-gray-400">
+            We will only have read-access to your repositories. Your authentication token is never stored on our servers.
+          </p>
+        </div>
+      </div>
+      <Button onClick={handleLogin}>
+        <Github className="mr-2 h-4 w-4" /> Login with GitHub
+      </Button>
     </div>
-  )
+  );
 }
 
 function ReminderApp({ user }: { user: User }) {
